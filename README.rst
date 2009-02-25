@@ -1,9 +1,12 @@
 About
 -----
 
-A library for authorizing and accessing Yammer via OAuth.
+A library for authorizing and accessing Yammer_ via OAuth.
+
+.. _Yammer: https://www.yammer.com/
 
 Requires OAuth_ and, if using proxy, pycurl_.
+
 .. _OAuth: http://code.google.com/p/oauth/
 .. _pycurl: http://pycurl.sourceforge.net/
 
