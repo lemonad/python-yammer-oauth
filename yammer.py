@@ -4,8 +4,9 @@
 """
 A library for authorizing and accessing Yammer via OAuth.
 
-Requires OAuth: http://code.google.com/p/oauth/
-
+Requires:
+  OAuth: http://code.google.com/p/oauth/
+  pycurl: http://pycurl.sourceforge.net/ (only if using proxy)
 
 Note: The Yammer API methods seem to be designed for being used by users
 themselves rather than by bots. If your intention is to bring out material
@@ -23,7 +24,7 @@ try:
     import pycurl, StringIO
     use_pycurl = True
 except ImportError:
-    import httplib
+    import httplib, socket
     use_pycurl = False
 
 __author__ = 'Jonas Nockert'
@@ -127,8 +128,8 @@ class YammerOAuthClient(oauth.OAuthClient):
                 self._connection.setopt(pycurl.WRITEFUNCTION, content.write)
                 self._connection.setopt(pycurl.URL, YAMMER_REQUEST_TOKEN_URL)
                 self._connection.perform()
-            except pycurl.error, m:
-                raise YammerError(m.message)
+            except pycurl.error, (n, m):
+                raise YammerError(m)
 
             status = self._connection.getinfo(pycurl.HTTP_CODE)
             if status == 401:
@@ -138,9 +139,13 @@ class YammerOAuthClient(oauth.OAuthClient):
                                   YAMMER_REQUEST_TOKEN_URL, status))
             r = content.getvalue()
         else:
-            self._connection.request(oauth_request.http_method,
-                                    YAMMER_REQUEST_TOKEN_URL,
-                                    headers=headers)
+            try:
+                self._connection.request(oauth_request.http_method,
+                                          YAMMER_REQUEST_TOKEN_URL,
+                                          headers=headers)
+            except socket.gaierror, (n, m):
+                raise YammerError(m)
+
             response = self._connection.getresponse()
             if response.status == 401:
                 raise YammerError("Consumer key and/or secret not accepted.")
@@ -207,8 +212,8 @@ class YammerOAuthClient(oauth.OAuthClient):
                 self._connection.setopt(pycurl.WRITEFUNCTION, content.write)
                 self._connection.setopt(pycurl.URL, YAMMER_ACCESS_TOKEN_URL)
                 self._connection.perform()
-            except pycurl.error, m:
-                raise YammerError(m.message)
+            except pycurl.error, (n, m):
+                raise YammerError(m)
 
             status = self._connection.getinfo(pycurl.HTTP_CODE)
             if status == 401:
@@ -218,9 +223,13 @@ class YammerOAuthClient(oauth.OAuthClient):
                                   YAMMER_ACCESS_TOKEN_URL, status))
             r = content.getvalue()
         else:
-            self._connection.request(oauth_request.http_method,
-                                      YAMMER_ACCESS_TOKEN_URL,
-                                      headers=headers)
+            try:
+                self._connection.request(oauth_request.http_method,
+                                          YAMMER_ACCESS_TOKEN_URL,
+                                          headers=headers)
+            except socket.gaierror, (n, m):
+                raise YammerError(m)
+
             response = self._connection.getresponse()
             if response.status == 401:
                 raise YammerError("Request token not authorized.")
@@ -265,8 +274,8 @@ class YammerOAuthClient(oauth.OAuthClient):
                 self._connection.setopt(pycurl.WRITEFUNCTION, content.write)
                 self._connection.setopt(pycurl.URL, url)
                 self._connection.perform()
-            except pycurl.error, m:
-                 raise YammerError(m.message)
+            except pycurl.error, (n, m):
+                raise YammerError(m)
 
             status = self._connection.getinfo(pycurl.HTTP_CODE)
             if status != 200:
@@ -274,7 +283,11 @@ class YammerOAuthClient(oauth.OAuthClient):
                                   url, status))
             return content.getvalue()
         else:
-            self._connection.request(oauth_request.http_method, url)
+            try:
+                self._connection.request(oauth_request.http_method, url)
+            except socket.gaierror, (n, m):
+                raise YammerError(m)
+
             response = self._connection.getresponse()
             if response.status != 200:
                 raise YammerError("Resource '%s' returned HTTP code %d." % (
@@ -336,7 +349,7 @@ if __name__ == "__main__":
     access_token_key = ''
     access_token_secret = ''
 
-    proxy_yesno = raw_input("use http proxy? [y/N]: ")
+    proxy_yesno = raw_input("use http proxy? [y/N]: ")
     if string.strip((proxy_yesno.lower())[0:1]) == 'y':
         proxy_host = raw_input("proxy hostname: ")
         proxy_port = int(raw_input("proxy port: "))
@@ -355,7 +368,7 @@ if __name__ == "__main__":
     if consumer_key == '' or consumer_secret == '':
         print "\n#1 ... visit " \
             "https://www.yammer.com/client_applications/new\n" \
-            "to register your application.\n"
+            "       to register your application.\n"
 
         consumer_key = raw_input("enter consumer key: ")
         consumer_secret = raw_input("enter consumer secret: ")
