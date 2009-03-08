@@ -297,10 +297,14 @@ class YammerOAuthClient(oauth.OAuthClient):
 def get_user_posts(consumer_key, consumer_secret,
                     access_token, access_token_secret,
                     max_length=10,
+                    username=None,
                     proxy_host=None, proxy_port=None,
                     proxy_username=None, proxy_password=None):
     """
     Fetch a user's yammer posts and returns a json decoded python structure.
+
+    Note that if a username is not given, the posts of the owner of the API
+    keys are fetched.
 
     Keyword arguments:
 
@@ -310,20 +314,25 @@ def get_user_posts(consumer_key, consumer_secret,
                     resources on behalf of the user
     access token secret -- establish ownership of the access token
     max length -- maximum number of posts to return
+    username -- a Yammer username for whom to fetch posts (optional)
     proxy host -- host name of proxy server (optional)
     proxy port -- port number (integer, optional)
     proxy username -- used if proxy requires authentication (optional)
     proxy password -- used if proxy requires authentication (optional)
 
     """
-    user_sent_messages_api_url = YAMMER_API_BASE_URL + 'messages/sent.json'
+    if username:
+        url = "%smessages/from_user/%s.json" % (YAMMER_API_BASE_URL, username)
+    else:
+        url = "%smessages/sent.json" % (YAMMER_API_BASE_URL)
+
     client = YammerOAuthClient(consumer_key, consumer_secret,
                                 proxy_host=proxy_host,
                                 proxy_port=proxy_port,
                                 proxy_username=proxy_username,
                                 proxy_password=proxy_password)
     token = oauth.OAuthToken(access_token, access_token_secret)
-    json = client.fetch_resource(token, user_sent_messages_api_url)
+    json = client.fetch_resource(token, url)
     client.close()
 
     try:
@@ -344,18 +353,17 @@ def get_user_posts(consumer_key, consumer_secret,
 if __name__ == "__main__":
     consumer_key = ''
     consumer_secret = ''
-    unauth_request_token_key = ''
-    unauth_request_token_secret = ''
     access_token_key = ''
     access_token_secret = ''
+    username = ''
 
-    proxy_yesno = raw_input("use http proxy? [y/N]: ")
+    proxy_yesno = raw_input("Use http proxy? [y/N]: ")
     if string.strip((proxy_yesno.lower())[0:1]) == 'y':
-        proxy_host = raw_input("proxy hostname: ")
-        proxy_port = int(raw_input("proxy port: "))
-        proxy_username = raw_input("proxy username (return for none): ")
+        proxy_host = raw_input("Proxy hostname: ")
+        proxy_port = int(raw_input("Proxy port: "))
+        proxy_username = raw_input("Proxy username (return for none): ")
         if len(proxy_username) != 0:
-            proxy_password = raw_input("proxy password: ")
+            proxy_password = raw_input("Proxy password: ")
         else:
             proxy_username = None
             proxy_password = None
@@ -370,16 +378,15 @@ if __name__ == "__main__":
             "https://www.yammer.com/client_applications/new\n" \
             "       to register your application.\n"
 
-        consumer_key = raw_input("enter consumer key: ")
-        consumer_secret = raw_input("enter consumer secret: ")
+        consumer_key = raw_input("Enter consumer key: ")
+        consumer_secret = raw_input("Enter consumer secret: ")
 
     if consumer_key == '' or consumer_secret == '':
         print "*** Error: Consumer key or (%s) secret (%s) not valid.\n" % (
                                                 consumer_key, consumer_secret)
         quit()
 
-    if(unauth_request_token_key == '' or unauth_request_token_secret == '' or
-                          access_token_key == '' or access_token_secret == ''):
+    if(access_token_key == '' or access_token_secret == ''):
         try:
             client = YammerOAuthClient(consumer_key, consumer_secret,
                                 proxy_host=proxy_host,
@@ -390,7 +397,6 @@ if __name__ == "__main__":
             print "*** Error: %s" % m.message
             quit()
 
-    if unauth_request_token_key == '' or unauth_request_token_secret == '':
         print "\n#2 ... Fetching request token.\n"
 
         try:
@@ -411,7 +417,6 @@ if __name__ == "__main__":
 
         raw_input("Press return when done.")
 
-    if access_token_key == '' or access_token_secret == '':
         print "\n#4 ... Fetching access token.\n"
 
         unauth_request_token = oauth.OAuthToken(unauth_request_token_key,
@@ -428,6 +433,9 @@ if __name__ == "__main__":
         print "\nKey:    %s" % access_token_key
         print "Secret: %s" % access_token_secret
         
+    if username == '':
+        username = raw_input("Enter Yammer username (or return for current): ")
+
     print "\n#5 ... Fetching latest user post.\n"
 
     try:
@@ -436,6 +444,7 @@ if __name__ == "__main__":
                           access_token_key,
                           access_token_secret,
                           1,
+                          username=username,
                           proxy_host=proxy_host,
                           proxy_port=proxy_port,
                           proxy_username=proxy_username,
