@@ -298,6 +298,7 @@ def get_user_posts(consumer_key, consumer_secret,
                     access_token, access_token_secret,
                     max_length=10,
                     username=None,
+                    include_replies=False,
                     proxy_host=None, proxy_port=None,
                     proxy_username=None, proxy_password=None):
     """
@@ -315,6 +316,7 @@ def get_user_posts(consumer_key, consumer_secret,
     access token secret -- establish ownership of the access token
     max length -- maximum number of posts to return
     username -- a Yammer username for whom to fetch posts (optional)
+    include_replies -- return only posts or both posts and replies (optional)
     proxy host -- host name of proxy server (optional)
     proxy port -- port number (integer, optional)
     proxy username -- used if proxy requires authentication (optional)
@@ -342,7 +344,15 @@ def get_user_posts(consumer_key, consumer_secret,
 
     if 'messages' not in pyjson:
         raise YammerError("Messages section missing in returned JSON.")
-    return pyjson['messages'][0:max_length]
+
+    if include_replies:
+        return pyjson['messages'][0:max_length]
+    else:
+        replies = []
+        for m in pyjson['messages']:
+            if not m['replied_to_id']:
+                replies.append(m)
+        return replies[0:max_length]
 
 
 #
@@ -356,6 +366,7 @@ if __name__ == "__main__":
     access_token_key = ''
     access_token_secret = ''
     username = ''
+    include_replies = None
 
     proxy_yesno = raw_input("Use http proxy? [y/N]: ")
     if string.strip((proxy_yesno.lower())[0:1]) == 'y':
@@ -428,13 +439,20 @@ if __name__ == "__main__":
             quit()
         access_token_key = access_token.key
         access_token_secret = access_token.secret
-        
+
         print "Your access token: "
         print "\nKey:    %s" % access_token_key
         print "Secret: %s" % access_token_secret
-        
+
     if username == '':
         username = raw_input("Enter Yammer username (or return for current): ")
+
+    if include_replies == None:
+        include_replies_yesno = raw_input("Include replies? [y/N]: ")
+        if string.strip((include_replies_yesno.lower())[0:1]) == 'y':
+            include_replies = True
+        else:
+            include_replies = False
 
     print "\n#5 ... Fetching latest user post.\n"
 
@@ -445,6 +463,7 @@ if __name__ == "__main__":
                           access_token_secret,
                           1,
                           username=username,
+                          include_replies=include_replies,
                           proxy_host=proxy_host,
                           proxy_port=proxy_port,
                           proxy_username=proxy_username,
