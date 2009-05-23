@@ -79,6 +79,8 @@ class YammerOAuthClient(oauth.OAuthClient):
             self._connection = pycurl.Curl()
             self._connection.setopt(pycurl.CONNECTTIMEOUT, YAMMER_TIMEOUT)
             self._connection.setopt(pycurl.TIMEOUT, YAMMER_TIMEOUT)
+            if http_debug_flag:
+                self._connection.setopt(pycurl.VERBOSE, 1)
         else:
             self._connection = httplib.HTTPSConnection("%s" % YAMMER_URL)
             if http_debug_flag:
@@ -247,6 +249,10 @@ class YammerOAuthClient(oauth.OAuthClient):
                 raise YammerError("Request to '%s' returned HTTP code %d." % (
                                   url, status))
             r = content.getvalue()
+            if http_debug_flag:
+                print "----response----"
+                print r
+                print "----end-response----"
         else:
             try:
                 self._connection.request(oauth_request.http_method,
