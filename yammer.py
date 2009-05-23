@@ -27,6 +27,18 @@ except ImportError:
     import httplib, socket
     use_pycurl = False
 
+try:
+    from local_settings import *
+except ImportError:
+    http_debug_flag = False
+    consumer_key = ''
+    consumer_secret = ''
+    access_token_key = ''
+    access_token_secret = ''
+    username = ''
+    include_replies = None
+
+
 __author__ = 'Jonas Nockert'
 __license__ = "GPL"
 __version__ = '0.1.0'
@@ -69,6 +81,8 @@ class YammerOAuthClient(oauth.OAuthClient):
             self._connection.setopt(pycurl.TIMEOUT, YAMMER_TIMEOUT)
         else:
             self._connection = httplib.HTTPSConnection("%s" % YAMMER_URL)
+            if http_debug_flag:
+                self._connection.set_debuglevel(100000)
 
         if proxy_host is not None or proxy_port is not None:
             if not use_pycurl:
@@ -91,7 +105,10 @@ class YammerOAuthClient(oauth.OAuthClient):
 
         try:
             self._consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
-            self._signature = oauth.OAuthSignatureMethod_HMAC_SHA1()
+            # Can't get HMAC-SHA1 to work but since Yammer is using HTTPS,
+            # PLAINTEXT should be fine.
+            # self._signature = oauth.OAuthSignatureMethod_HMAC_SHA1()
+            self._signature = oauth.OAuthSignatureMethod_PLAINTEXT()
         except oauth.OAuthError, m:
             raise YammerError(m.message)
 
@@ -110,6 +127,7 @@ class YammerOAuthClient(oauth.OAuthClient):
         try:
             oauth_request = oauth.OAuthRequest.from_consumer_and_token(
                                             self._consumer,
+                                            http_method='POST',
                                             http_url=YAMMER_REQUEST_TOKEN_URL)
             oauth_request.sign_request(self._signature, self._consumer, None)
             headers = oauth_request.to_header()
@@ -179,7 +197,7 @@ class YammerOAuthClient(oauth.OAuthClient):
             raise YammerError(m.message)
         return url
 
-    def fetch_access_token(self, token):
+    def fetch_access_token(self, unauth_request_token, callback_token):
         """
         After the user has authorizated API access via the authorization URL,
         get the (semi-)permanent access key using the user-authorized request
@@ -187,15 +205,22 @@ class YammerOAuthClient(oauth.OAuthClient):
 
         Keyword arguments:
 
-        token -- The user-authorized OAuth request token
+        unauth_request_token -- The user-authorized OAuth request token
+        callback_token -- Yammer specific token as of
+                          http://oauth.net/advisories/2009-1
 
         """
+
+        url = YAMMER_ACCESS_TOKEN_URL + "?callback_token=" + callback_token
         try:
             oauth_request = oauth.OAuthRequest.from_consumer_and_token(
                 self._consumer,
-                token=token,
-                http_url=YAMMER_ACCESS_TOKEN_URL)
-            oauth_request.sign_request(self._signature, self._consumer, token)
+                token=unauth_request_token,
+                http_method='POST',
+                http_url=url)
+            oauth_request.sign_request(self._signature,
+                                       self._consumer,
+                                       unauth_request_token)
             headers = oauth_request.to_header()
         except oauth.OAuthError, m:
             raise YammerError(m.message)
@@ -210,7 +235,7 @@ class YammerOAuthClient(oauth.OAuthClient):
                 content = StringIO.StringIO()
                 self._connection.setopt(pycurl.HTTPHEADER, header_list)
                 self._connection.setopt(pycurl.WRITEFUNCTION, content.write)
-                self._connection.setopt(pycurl.URL, YAMMER_ACCESS_TOKEN_URL)
+                self._connection.setopt(pycurl.URL, url)
                 self._connection.perform()
             except pycurl.error, (n, m):
                 raise YammerError(m)
@@ -220,23 +245,27 @@ class YammerOAuthClient(oauth.OAuthClient):
                 raise YammerError("Request token not authorized.")
             elif status != 200:
                 raise YammerError("Request to '%s' returned HTTP code %d." % (
-                                  YAMMER_ACCESS_TOKEN_URL, status))
+                                  url, status))
             r = content.getvalue()
         else:
             try:
                 self._connection.request(oauth_request.http_method,
-                                          YAMMER_ACCESS_TOKEN_URL,
-                                          headers=headers)
+                                         url,
+                                         headers=headers)
             except socket.gaierror, (n, m):
                 raise YammerError(m)
 
             response = self._connection.getresponse()
+            r = response.read()
+            if http_debug_flag:
+                print "----response----"
+                print r
+                print "----end-response----"
             if response.status == 401:
                 raise YammerError("Request token not authorized.")
             elif response.status != 200:
                 raise YammerError("Resource '%s' returned HTTP code %d." % (
-                                  YAMMER_ACCESS_TOKEN_URL, response.status))
-            r = response.read()
+                                  url, response.status))
 
         try:
             access_token = oauth.OAuthToken.from_string(r)
@@ -361,13 +390,6 @@ def get_user_posts(consumer_key, consumer_secret,
 #
 
 if __name__ == "__main__":
-    consumer_key = ''
-    consumer_secret = ''
-    access_token_key = ''
-    access_token_secret = ''
-    username = ''
-    include_replies = None
-
     proxy_yesno = raw_input("Use http proxy? [y/N]: ")
     if string.strip((proxy_yesno.lower())[0:1]) == 'y':
         proxy_host = raw_input("Proxy hostname: ")
@@ -426,14 +448,16 @@ if __name__ == "__main__":
 
         print "#3 ... Manually authorize via url: %s\n" % url
 
-        raw_input("Press return when done.")
+        callback_token = raw_input("After authorizing, enter callback" \
+                                   " token (four characters): ")
 
         print "\n#4 ... Fetching access token.\n"
 
         unauth_request_token = oauth.OAuthToken(unauth_request_token_key,
                               unauth_request_token_secret)
         try:
-            access_token = client.fetch_access_token(unauth_request_token)
+            access_token = client.fetch_access_token(unauth_request_token,
+                                                     callback_token)
         except YammerError, m:
             print "*** Error: %s" % m.message
             quit()
