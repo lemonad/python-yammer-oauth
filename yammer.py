@@ -199,7 +199,7 @@ class YammerOAuthClient(oauth.OAuthClient):
             raise YammerError(m.message)
         return url
 
-    def fetch_access_token(self, unauth_request_token, callback_token):
+    def fetch_access_token(self, unauth_request_token, oauth_verifier):
         """
         After the user has authorizated API access via the authorization URL,
         get the (semi-)permanent access key using the user-authorized request
@@ -208,12 +208,11 @@ class YammerOAuthClient(oauth.OAuthClient):
         Keyword arguments:
 
         unauth_request_token -- The user-authorized OAuth request token
-        callback_token -- Yammer specific token as of
-                          http://oauth.net/advisories/2009-1
+        oauth_verifier -- Per OAuth 1.0 Revision A
 
         """
 
-        url = YAMMER_ACCESS_TOKEN_URL + "?callback_token=" + callback_token
+        url = YAMMER_ACCESS_TOKEN_URL + "?oauth_verifier=" + oauth_verifier
         try:
             oauth_request = oauth.OAuthRequest.from_consumer_and_token(
                 self._consumer,
@@ -454,8 +453,8 @@ if __name__ == "__main__":
 
         print "#3 ... Manually authorize via url: %s\n" % url
 
-        callback_token = raw_input("After authorizing, enter callback" \
-                                   " token (four characters): ")
+        oauth_verifier = raw_input("After authorizing, enter the OAuth" \
+                                   " verifier (four characters): ")
 
         print "\n#4 ... Fetching access token.\n"
 
@@ -463,7 +462,7 @@ if __name__ == "__main__":
                               unauth_request_token_secret)
         try:
             access_token = client.fetch_access_token(unauth_request_token,
-                                                     callback_token)
+                                                     oauth_verifier)
         except YammerError, m:
             print "*** Error: %s" % m.message
             quit()
