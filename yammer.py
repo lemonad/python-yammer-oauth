@@ -40,8 +40,8 @@ except ImportError:
 
 
 __author__ = 'Jonas Nockert'
-__license__ = "GPL"
-__version__ = '0.1.0'
+__license__ = "MIT"
+__version__ = '0.1.1'
 __email__ = "jonasnockert@gmail.com"
 
 YAMMER_REQUEST_TOKEN_URL = 'https://www.yammer.com/oauth/request_token'

@@ -16,7 +16,6 @@ Note: The Yammer API methods seem to be designed for being used by users themsel
 License
 -------
 
-GNU General Public License, version 3
+MIT, as of version 0.1.1.
 
-http://www.gnu.org/licenses/gpl.html
-
+Previous versions, up to version 0.1, was licensed as GPL v3.
