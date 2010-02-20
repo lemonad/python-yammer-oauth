@@ -1,2 +1,7 @@
+.Python
+bin
+include
+lib
 *.pyc
 local_settings.py
+example_local_settings.py
